@@ -3,9 +3,9 @@ import threading
 import json
 import time
 
-# TXReceiver class to handle incoming connections from AudioIns 
+# Receiver class to handle incoming connections from AudioIns 
 
-class TXReceiver:
+class Receiver:
     def __init__(self, listen_port=5004):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("0.0.0.0", listen_port))
@@ -46,11 +46,11 @@ class TXReceiver:
         print(f"Transmitter {transmitter_id} connected to {addr}")
 
     def handle_disconnect(self, message, addr):
-        transmitter_id = message["tqransmitter_id"]
+        transmitter_id = message["transmitter_id"]
         if transmitter_id in self.connections:
             del self.connections[transmitter_id]
-            response = ["type: disconnect_ack", "status: disconnected"]
-            self.socket.sendto(json.dumps(response). encode(), addr)
+            response = {"type: disconnect_ack", "status: disconnected"}
+            self.socket.sendto(json.dumps(response).encode(), addr)
             print(f"Disconnected transmitter {transmitter_id}")
 
     def handle_ping(self, addr):
