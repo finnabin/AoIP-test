@@ -3,9 +3,7 @@ import threading
 import json
 import time
 
-# Server side (receiver)
-# server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
-# server_socket.bind(('0.0.0.0', 5004))
+# TXReceiver class to handle incoming connections from AudioIns 
 
 class TXReceiver:
     def __init__(self, listen_port=5004):
@@ -63,6 +61,5 @@ class TXReceiver:
     def stop(self):
         self.running = False
         self.socket.close()
-
 
 
