@@ -1,8 +1,6 @@
 import RXreceiver
 import TXtransmitter
-import socket
-import threading
-import json
+import discovery
 import time
 
 def main():
@@ -12,6 +10,17 @@ def main():
     receiver = RXreceiver.Receiver()
     transmitter = TXtransmitter.Transmitter(transmitter_id="TX1", receiver_ip="127.0.0.1") 
     print("Receiver started on port 5004")
+
+    # Start device discovery
+    discoverer = discovery.AES67Discovery(manual_config_path="config.json")
+    discoverer.start_SAP_discovery()
+
+    print("Discovering devices...")
+    time.sleep(5)
+
+    # List discovered devices
+    discoverer.show_devices()
+
     # Start the receiver
     receiver.start()   
     time.sleep(1) # Give the receiver a moment to start
@@ -51,6 +60,7 @@ def main():
         time.sleep(5) # Keep the connection for 5 seconds
 
         transmitter.disconnect() # Disconnect the transmitter
+
 
 
 
