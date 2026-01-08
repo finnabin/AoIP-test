@@ -22,7 +22,7 @@ def main():
     print("Attempting to connect transmitter TX1...") # first transmitter test
     if tx1.connect():
             print("TX1 connected successfully.")
-            receiver.show_connections()
+            receiver.connections()
     else:
             print("TX1 failed to connect.")
 
@@ -30,7 +30,7 @@ def main():
     print("Attempting to connect transmitter TX2...") # second transmitter test
     if tx2.connect():
             print("TX2 connected successfully.")
-            receiver.show_connections()
+            receiver.connections()
     else:
             print("TX2 failed to connect.")
 
@@ -39,12 +39,12 @@ def main():
     print ("Disconnecting transmitter TX1...") # disconnect first transmitter test
     tx1.disconnect()
     time.sleep(1)
-    receiver.show_connections()
+    receiver.connections()
 
     print ("Disconnecting transmitter TX2...") # disconnect second transmitter test
     tx2.disconnect() 
     time.sleep(1)
-    receiver.show_connections()
+    receiver.connections()
 
     # Connect the transmitter to the receiver
     if transmitter.connect():
