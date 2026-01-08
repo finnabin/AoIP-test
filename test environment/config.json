@@ -1,0 +1,12 @@
+{"#comment": "Add device info manually if SAP discovery isn't supported"}
+{
+  "devices": [
+    {
+      "id": "",
+      "ip": "",
+      "port": 5004,
+      "media_type": "",
+      "type": ""
+    }
+]
+}
