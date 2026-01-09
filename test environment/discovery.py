@@ -21,13 +21,13 @@ class AES67Discovery:
         except Exception as e:
             print(f"Error loading manual configuration: {e}")
 
-    def start_SAP_discovery(self): # start listening for SAP announcements from AES67 devices
+    def start_sap_discovery(self): # start listening for SAP announcements from AES67 devices
         self.running = True
-        sap_thread = threading.Thread(target=self._SAP_listener)
+        sap_thread = threading.Thread(target=self._sap_listener)
         sap_thread.start()
         print ("SAP discovery started")
 
-    def _SAP_listener(self): # listens for SAP announcements
+    def _sap_listener(self): # listens for SAP announcements
         MCAST_GRP = "224.2.127.254"
         MCAST_PORT = 9875
         try: 
@@ -57,7 +57,7 @@ class AES67Discovery:
         finally:
             sock.close()
 
-        def _parse_sap_packet(self, data, addr): # parse SAP packets and extract device info
+    def _parse_sap_packet(self, data, addr): # parse SAP packets and extract device info
             try:
                 if len(data) <8:
                     return # Not a valid SAP packet
@@ -76,7 +76,7 @@ class AES67Discovery:
             except Exception as e:
                 print(f"Error parsing SAP packet from {addr}: {e}")
 
-        def _parse_sdp(self, sdp_data, addr): # extract relevant info from SDP data
+    def _parse_sdp(self, sdp_data, addr): # extract relevant info from SDP data
             device_info = {
                 "ip": addr[0],
                 "port": None,
@@ -112,7 +112,7 @@ class AES67Discovery:
                 print(f"Error parsing SDP data from {addr}: {e}")
                 return None
             
-        def get_discovered_devices(self): # return list of discovered devices
+    def get_discovered_devices(self): # return list of discovered devices
             all_devices = dict(self.discovered_devices)
 
             # include manual config devices if available
@@ -124,11 +124,11 @@ class AES67Discovery:
 
             return all_devices
     
-        def get_device_by_id(self, device_id): # get specific device by ID
+    def get_device_by_id(self, device_id): # get specific device by ID
             devices = self.get_discovered_devices()
             return devices.get(device_id)
         
-        def show_devices(self): # print discovered devices
+    def show_devices(self): # print discovered devices
             devices = self.get_discovered_devices()
             if not devices:
                 print("No devices discovered.")
@@ -138,7 +138,7 @@ class AES67Discovery:
             for device_id, info in devices.items():
                 print(f"- ID: {device_id}, IP: {info['ip']}, Port: {info['port']}, Media: {info['media_type']}")
 
-        def stop(self): # stop discovery process
+    def stop(self): # stop discovery process
             self.running = False
             print("SAP discovery stopped")
 

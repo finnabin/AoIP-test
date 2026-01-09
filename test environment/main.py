@@ -8,7 +8,7 @@ def main():
 
     # Start device discovery
     discoverer = discovery.AES67Discovery(manual_config_path="config.json")
-    discoverer.start_SAP_discovery()
+    discoverer.start_sap_discovery()
 
     print("Discovering devices...")
     time.sleep(5)
@@ -24,6 +24,8 @@ def main():
         print("  - Devices are in AES67 mode")
         print("  - Devices are announcing via SAP")
         print("  - config.json has manual fallback devices")
+        discoverer.stop()
+        print("Exiting - no devices found.")
         return
 
     # Initialize the receiver
@@ -94,3 +96,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+    
