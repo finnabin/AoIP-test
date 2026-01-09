@@ -6,11 +6,6 @@ import time
 def main():
     print("=== AudioOverIP Test Environment ===")
 
-    # Initialize the receiver and transmitter
-    receiver = RXreceiver.Receiver()
-    transmitter = TXtransmitter.Transmitter(transmitter_id="TX1", receiver_ip="127.0.0.1") 
-    print("Receiver started on port 5004")
-
     # Start device discovery
     discoverer = discovery.AES67Discovery(manual_config_path="config.json")
     discoverer.start_SAP_discovery()
@@ -21,52 +16,81 @@ def main():
     # List discovered devices
     discoverer.show_devices()
 
-    # Start the receiver
-    receiver.start()   
-    time.sleep(1) # Give the receiver a moment to start
-
-    tx1 = TXtransmitter.Transmitter(transmitter_id="MICROPHONE", receiver_ip="127.0.0.1")
-    tx2 = TXtransmitter.Transmitter(transmitter_id="SPEAKER", receiver_ip="127.0.0.1")
-
-    print("Attempting to connect transmitter TX1...") # first transmitter test
-    if tx1.connect():
-            print("TX1 connected successfully.")
-            receiver.connections()
-    else:
-            print("TX1 failed to connect.")
-
-    time.sleep(2)
-    print("Attempting to connect transmitter TX2...") # second transmitter test
-    if tx2.connect():
-            print("TX2 connected successfully.")
-            receiver.connections()
-    else:
-            print("TX2 failed to connect.")
-
-    time.sleep(2)
-
-    print ("Disconnecting transmitter TX1...") # disconnect first transmitter test
-    tx1.disconnect()
-    time.sleep(1)
-    receiver.connections()
-
-    print ("Disconnecting transmitter TX2...") # disconnect second transmitter test
-    tx2.disconnect() 
-    time.sleep(1)
-    receiver.connections()
-
-    # Connect the transmitter to the receiver
-    if transmitter.connect():
-        time.sleep(5) # Keep the connection for 5 seconds
-
-        transmitter.disconnect() # Disconnect the transmitter
-
-
-
-
+    # get discovered devices
+    devices = discoverer.get_discovered_devices()
     
-    # Stop the receiver
-    receiver.stop() 
+    if not devices:
+        print("⚠ No devices discovered! Check that:")
+        print("  - Devices are in AES67 mode")
+        print("  - Devices are announcing via SAP")
+        print("  - config.json has manual fallback devices")
+        return
+
+    # Initialize the receiver
+    receiver = RXreceiver.Receiver()
+    print("Receiver started on port 5004")
+    receiver.start()   
+    time.sleep(1)
+
+    # Create transmitters from discovered devices
+    transmitters = {}
+    device_list = list(devices.items())
+    
+    # Try to connect to first two discovered devices
+    if len(device_list) >= 1:
+        device_id, device_info = device_list[0]
+        print(f"\nAttempting to connect to discovered device: {device_id}")
+        tx1 = TXtransmitter.Transmitter(
+            transmitter_id=device_id,
+            receiver_ip=device_info['ip'],
+            receiver_port=device_info.get('port', 5004)
+        )
+        if tx1.connect():
+            print(f"✓ {device_id} connected successfully")
+            transmitters['tx1'] = tx1
+            receiver.show_connections()  # FIXED: method call
+        else:
+            print(f"✗ {device_id} failed to connect")
+
+    time.sleep(2)
+
+    if len(device_list) >= 2:
+        device_id, device_info = device_list[1]
+        print(f"\nAttempting to connect to discovered device: {device_id}")
+        tx2 = TXtransmitter.Transmitter(
+            transmitter_id=device_id,
+            receiver_ip=device_info['ip'],
+            receiver_port=device_info.get('port', 5004)
+        )
+        if tx2.connect():
+            print(f"✓ {device_id} connected successfully")
+            transmitters['tx2'] = tx2
+            receiver.show_connections()  # FIXED: method call
+        else:
+            print(f"✗ {device_id} failed to connect")
+
+    time.sleep(5)
+
+    # Disconnect discovered devices
+    if 'tx1' in transmitters:
+        device_id = transmitters['tx1'].transmitter_id
+        print(f"\nDisconnecting {device_id}...")
+        transmitters['tx1'].disconnect()
+        time.sleep(1)
+        receiver.show_connections()  # FIXED: method call
+
+    if 'tx2' in transmitters:
+        device_id = transmitters['tx2'].transmitter_id
+        print(f"\nDisconnecting {device_id}...")
+        transmitters['tx2'].disconnect()
+        time.sleep(1)
+        receiver.show_connections()  # FIXED: method call
+
+    # Cleanup
+    print("\n--- Shutting down ---")
+    receiver.stop()
+    discoverer.stop()
+    print("Test complete!")
 
 if __name__ == "__main__":
-        main()
+    main()
