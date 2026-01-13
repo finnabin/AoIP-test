@@ -95,7 +95,10 @@ def main():
     print("Test complete!")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nTest interrupted by user. Exiting...")
 
 
 
