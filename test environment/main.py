@@ -2,6 +2,7 @@ import RXreceiver
 import TXtransmitter
 import discovery
 import time
+import PTPv2
 
 def main():
     print("=== AudioOverIP Test Environment ===")
@@ -70,6 +71,13 @@ def main():
             receiver.show_connections()  # FIXED: method call
         else:
             print(f"✗ {device_id} failed to connect")
+
+    PTPv2.PTPMonitor().check_ptp_traffic()
+
+    print("\nStreaming audio for 5 seconds...")
+
+    PTPv2.PTPMonitor().verify_sync_before_streaming()
+
 
     time.sleep(5)
 

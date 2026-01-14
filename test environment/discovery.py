@@ -117,7 +117,7 @@ class AES67Discovery:
 
             # include manual config devices if available
             if self.manual_config:
-                for device in self.manual.config.get("devices", []):
+                for device in self.manual_config.get("devices", []):
                     device_id = device.get("device id")
                     if device_id and device_id not in all_devices:
                         all_devices[device_id] = device
