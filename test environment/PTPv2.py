@@ -8,6 +8,14 @@ class PTPMonitor:
         self.ptp_detected = False
         self.master_clock_id = None
 
+
+        #start monitoring ptp traffic (clock sync status) 
+    """def start_monitoring(self): 
+        self.running = True
+        monitor_thread = threading.Thread(target=self._monitor_loop)
+        monitor_thread.daemon = True
+        monitor_thread.start()"""
+
     def check_ptp_traffic(self, timeout=5): # Check for PTPv2 traffic on the network to detect master clock
         PTP_EVENT_PORT = 319
 
