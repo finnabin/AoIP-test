@@ -56,3 +56,43 @@ class PTPMonitor:
         else:
             print("  Ensure PTP master clock is running on network")
             return False
+
+
+
+"""class AudioSafetyController:
+    
+    def __init__(self, transmitters):
+        self.transmitters = transmitters  # List of your TX objects
+        self.muted = False
+        
+    def handle_sync_loss(self, reason):
+        if not self.muted:
+            print(f"⚠⚠⚠ CLOCK SYNC FAILURE: {reason}")
+            print("Initiating safe audio shutdown...")
+            
+            # In real implementation with actual audio:
+            # 1. Apply fade-out over 500ms
+            # 2. Then mute completely
+            # 3. Maintain connection for quick recovery
+            
+            # For now, just disconnect
+            for tx_name, tx in self.transmitters.items():
+                print(f"  Muting {tx_name} for speaker protection")
+                # tx.apply_fade_out()  # Future implementation
+                # tx.mute()  # Future implementation
+                
+            self.muted = True
+            
+    def handle_sync_restored(self):
+        if self.muted:
+            print("✓ Clock sync restored")
+            print("  Waiting 2 seconds for stability...")
+            time.sleep(2)
+            
+            # Gradual fade back in
+            for tx_name, tx in self.transmitters.items():
+                print(f"  Unmuting {tx_name}")
+                # tx.apply_fade_in()  # Future implementation
+                # tx.unmute()
+                
+            self.muted = False"""
