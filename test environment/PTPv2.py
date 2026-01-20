@@ -10,11 +10,11 @@ class PTPMonitor:
 
 
         #start monitoring ptp traffic (clock sync status) 
-    """def start_monitoring(self): 
+    def start_monitoring(self): 
         self.running = True
         monitor_thread = threading.Thread(target=self._monitor_loop)
         monitor_thread.daemon = True
-        monitor_thread.start()"""
+        monitor_thread.start()
 
     def check_ptp_traffic(self, timeout=5): # Check for PTPv2 traffic on the network to detect master clock
         PTP_EVENT_PORT = 319
@@ -59,7 +59,7 @@ class PTPMonitor:
 
 
 
-"""class AudioSafetyController:
+class AudioSafetyController:
     
     def __init__(self, transmitters):
         self.transmitters = transmitters  # List of your TX objects
@@ -95,4 +95,4 @@ class PTPMonitor:
                 # tx.apply_fade_in()  # Future implementation
                 # tx.unmute()
                 
-            self.muted = False"""
+            self.muted = False
