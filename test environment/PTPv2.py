@@ -1,63 +1,92 @@
 # logic for monitoring clock synchronization using PTPv2 would go here
 import socket
 import struct
+import time
+import threading
+import math
 
 class PTPMonitor:
 
-    def __init__(self): 
+    def __init__(self, callback_on_sync_loss=None, callback_on_sync_restore=None):
+ 
         self.ptp_detected = False
-        self.master_clock_id = None
+        self.last_ptp_time = 0
+        self.sync_timeout = 2.0
+        self.callback_loss = callback_on_sync_loss
+        self.callback_restrore = callback_on_sync_restore
+        self.running = False
+        self.consecutive_failures = 0
+        self.failure_threshold = 3  # Number of consecutive failures before triggering loss
+        self.was_synced = False
+        
 
-
-        #start monitoring ptp traffic (clock sync status) 
-    def start_monitoring(self): 
+    def start_monitoring(self): # Start background thread to monitor PTP traffic
         self.running = True
         monitor_thread = threading.Thread(target=self._monitor_loop)
         monitor_thread.daemon = True
         monitor_thread.start()
+        print("PTP monitoring started")
 
-    def check_ptp_traffic(self, timeout=5): # Check for PTPv2 traffic on the network to detect master clock
+    def _monitor_loop(self): # Internal loop to check for PTP traffic periodically
+
         PTP_EVENT_PORT = 319
+        PTP_MULTICAST_ADDR = "224.0.1.129" # Standard PTPv2 multicast address
 
-        try: 
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        try:
+            sock = socket.socket(AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) # Create UDP socket
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("", PTP_EVENT_PORT))
-            sock.settimeout(timeout)
-            
-            mreq = struct.pack("4sl", socket.inet_aton("224.0.1.129"), socket.INADDR_ANY) # Join PTP multicast group
+
+            sock.bind(('', PTP_EVENT_PORT)) # bind to PTP port
+            sock.settimeout(1.0)
+
+            # Join the multicast group to recieve PTP packets
+            mreq = struct.pack("4sl", socket.inet_aton(PTP_MULTICAST_ADDR), socket.INADDR_ANY)
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-            
-            print(f"Listening for PTP packets for {timeout} seconds...")
-            
-            try:
-                data, addr = sock.recvfrom(1024)
-                self.ptp_detected = True
-                print(f"✓ PTP traffic detected from {addr[0]}")
-                return True
-            except socket.timeout:
-                self.ptp_detected = False
-                print("✗ No PTP traffic detected")
-                return False
-                
+
+            print(f"listening for PTP packets on port {PTP_EVENT_PORT}...")
+
+            while self.running:
+                try:
+                    data, addr = sock.recvfrom(1024) # Receive PTP packet
+                    self.last_ptp_time = time.time() # Packet received, clock sync now active
+
+                    if not self.was_synced:
+                        print(f"✓ PTPv2 traffic detected from {addr[0]}, clock synchronized")
+                        self.was_synced = True
+
+                        if self.callback_restore and self.consecutive_failures > 0:
+                            self.callback_restore()
+                    
+                    self.consecutive_failures = 0 # Reset failure count on successful packet receipt
+                    self.ptp_detected = True
+
+                except socket.timeout: 
+                    # Check if sync is lost
+                    time_since_last_ptp = time.time() - self.last_ptp_time
+                    
+                    if time_since_last_ptp > self.sync_timeout:
+                        self.consecutive_failures += 1
+
+                        if self.consecutive_failures >= self.failure_threshold:
+                            if self.ptp_detected: # Only prints statement if state changed
+                                print(f" PTP sync lost - no PTPv2 traffic for {time_since_last_ptp:.1f} seconds")
+                            self.was_synced = False
+                            self.ptp_detected = False
+
+                            # trigger callback to initiate audio mute
+                            if self.callback_loss:
+                                self.callback_loss("PTP_TIMEOUT")
+
         except PermissionError:
-            print("⚠ Cannot bind to PTP port (requires admin/root)")
-            return None
+            print("Permission denied: Unable to open socket for PTP monitoring. Try running as administrator/root.")
+            print("PTP monitoring disabled.")
+
         except Exception as e:
-            print(f"Error checking PTP: {e}")
-            return None
+            print(f"Error in PTP monitoring: {e}")
+
         finally:
             sock.close()
-    
-    def verify_sync_before_streaming(self): # Verify PTP synchronization before starting audio streaming
-        if self.check_ptp_traffic():
-            print("Clock synchronized via PTPv2")
-            return True
-        else:
-            print("  Ensure PTP master clock is running on network")
-            return False
-
-
+            print("PTP monitoring stopped")
 
 class AudioSafetyController:
     
