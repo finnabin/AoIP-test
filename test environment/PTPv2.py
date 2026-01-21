@@ -88,6 +88,16 @@ class PTPMonitor:
             sock.close()
             print("PTP monitoring stopped")
 
+    def is_synced(self): # returns true if recent PTP traffic is detected
+        return self.ptp_detected and (time.time() - self.last_ptp_time) <= self.sync_timeout
+
+    def get_sync_status(self): # Get current sync status as string
+        return "Synchronized" if self.is_synced() else "Not Synchronized"
+    
+    def stop (self):
+        self.running = False
+
+
 class AudioSafetyController:
     
     def __init__(self, transmitters):
