@@ -97,6 +97,60 @@ class PTPMonitor:
     def stop (self):
         self.running = False
 
+class AudioFader:
+
+    def __init__(self, fade_duration_ms=500):
+
+        self.fade_duration_ms = fade_duration_ms
+        self.step_ms = 10
+        self.num_steps = fade_duration_ms // self.step_ms
+
+    def generate_fade_out_curve(self):
+        curve = []
+        for i in range(self.num.steps):
+            progress = i / (self.num_steps -1)
+
+            db_reduction = -60 * progress
+            gain = 10 ** (db_reduction / 20)
+
+            curve.append(gain)
+
+        return curve
+    
+    def generate_fade_in_curve(self):
+
+        return list(reversed(self.generate_fade_out_curve()))
+    
+    def apply_fade_out(self, audio_source, callback=None):
+        curve = self.generate_fade_out_curve()
+
+        for i, gain in enumerate(curve):
+            # audio_source.set_gain(gain)  
+            # # Placeholder for actual audio gain adjustment
+            # Show progress every 10 steps
+            if i % 10 == 0:
+                db = 20 * math.log10(gain) if gain > 0.001 else -60
+                print(f"    Fade progress: {int(100*i/len(curve))}% (gain: {gain:.3f}, {db:.1f}dB)")
+            
+            time.sleep(self.step_ms / 1000.0) #convert ms to seconds
+
+        if callback:
+            callback() 
+
+    def apply_fade_in(self, audio_source, callback=None):
+
+        curve = self.generate_fade_in_curve()
+
+        for i, gain in enumerate(curve):
+
+            if i % 10 == 0:
+                db = 20 * math.log10(gain) if gain > 0.001 else -60
+                print(f"    Fade progress: {int(100*i/len(curve))}% (gain: {gain:.3f}, {db:.1f}dB)")
+            
+            time.sleep(self.step_ms / 1000.0)
+
+        if callback:
+            callback()
 
 class AudioSafetyController:
     
