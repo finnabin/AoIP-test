@@ -154,9 +154,19 @@ class AudioFader:
 
 class AudioSafetyController:
     
-    def __init__(self, transmitters):
+    def __init__(self, transmitters_dict=None):
         self.transmitters = transmitters  # List of your TX objects
         self.muted = False
+        self.fader = AudioFader(fade_duration_ms=500)
+        self.mute_reason = None
+
+    def add_transmitter(self, name, transmitter):
+        self.transmitters[name] = transmitter
+
+    def remove_transmitter(self, name):
+        if name in self.transmitters:
+            del self.transmitters[name]
+            print(f"  Removed transmitter {name} from clock monitoring")
         
     def handle_sync_loss(self, reason):
         if not self.muted:
