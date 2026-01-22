@@ -169,23 +169,26 @@ class AudioSafetyController:
             print(f"  Removed transmitter {name} from clock monitoring")
         
     def handle_sync_loss(self, reason):
-        if not self.muted:
-            print(f"⚠⚠⚠ CLOCK SYNC FAILURE: {reason}")
-            print("Initiating safe audio shutdown...")
-            
-            # In real implementation with actual audio:
-            # 1. Apply fade-out over 500ms
-            # 2. Then mute completely
-            # 3. Maintain connection for quick recovery
-            
-            # For now, just disconnect
-            for tx_name, tx in self.transmitters.items():
-                print(f"  Muting {tx_name} for speaker protection")
-                # tx.apply_fade_out()  # Future implementation
-                # tx.mute()  # Future implementation
-                
-            self.muted = True
-            
+        if self.muted:
+            return  # Already muted
+        
+        print(f"✗ Clock sync lost ({reason})")
+        print("  Muting audio outputs with fade-out...")
+        
+        self.mute_reason = reason
+
+        for tx_name, tx in self.transmitters.items():
+            print(f"  Muting {tx_name}")
+            # self.fader.apply_fade_out(tx.audio_source)  # Future implementation
+            # tx.mute()  # Placeholder for actual mute method
+            self.fader.apply_fade_out(tx)
+
+            print(f"  {tx_name} muted")
+
+        self.muted = True
+
+        print("  ✓ All audio outputs muted. Waiting for clock sync to return...")
+
     def handle_sync_restored(self):
         if self.muted:
             print("✓ Clock sync restored")
