@@ -190,7 +190,7 @@ class AudioSafetyController:
         print("  ✓ All audio outputs muted. Waiting for clock sync to return...")
 
     def handle_sync_restored(self):
-        if self.muted:
+        if not self.muted:
             print("✓ Clock sync restored")
             print("  Waiting 2 seconds for stability...")
             time.sleep(2)
@@ -198,7 +198,29 @@ class AudioSafetyController:
             # Gradual fade back in
             for tx_name, tx in self.transmitters.items():
                 print(f"  Unmuting {tx_name}")
-                # tx.apply_fade_in()  # Future implementation
-                # tx.unmute()
-                
+                self.fader.apply_fade_in(tx)
+
+                print(f"[{tx_name}] Unmuted")
+
             self.muted = False
+            self.muted_reason = None
+
+            print("All audio outputs unmuted.")
+
+    def get_status(self):
+
+        return {
+            "muted": self.muted,
+            "reason": self.mute_reason,
+            "protected_transmitters": list(self,transmitters.keys())
+            }
+    
+    def emergency_mute_all(self):
+
+        print("Emergency mute activated")
+
+        for tx_name, tx in self.transmitters.items():
+            print(f"  Muting {tx_name}")
+            self.muted = True
+            self.muted_reason = "EMERGENCY"
+
