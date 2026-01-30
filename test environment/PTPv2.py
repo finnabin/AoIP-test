@@ -31,9 +31,10 @@ class PTPMonitor:
 
         PTP_EVENT_PORT = 319
         PTP_MULTICAST_ADDR = "224.0.1.129" # Standard PTPv2 multicast address
+        sock = None
 
         try:
-            sock = socket.socket(AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) # Create UDP socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) # Create UDP socket
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             sock.bind(('', PTP_EVENT_PORT)) # bind to PTP port
@@ -85,7 +86,8 @@ class PTPMonitor:
             print(f"Error in PTP monitoring: {e}")
 
         finally:
-            sock.close()
+            if sock is not None:
+                sock.close()
             print("PTP monitoring stopped")
 
     def is_synced(self): # returns true if recent PTP traffic is detected
@@ -273,10 +275,11 @@ if __name__ == "__main__":
         while True:
             time.sleep(5)
             status = ptp.get_sync_status()
-            if status['synced']:
-                print(f"Status: Synced (last packet {status['last_packet_age']:.1f}s ago)")
+            if ptp.is_synced():
+                time_since_ptp = time.time() - ptp.last_ptp_time
+                print(f"Status: {status} (last packet {time_since_ptp:.1f}s ago)")
             else:
-                print(f"Status: NOT SYNCED (failures: {status['consecutive_failures']})")
+                print(f"Status: {status} (failures: {ptp.consecutive_failures})")
     
     except KeyboardInterrupt:
         print("\n\nShutting down...")
