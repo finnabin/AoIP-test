@@ -155,7 +155,7 @@ class AudioFader:
 class AudioSafetyController:
     
     def __init__(self, transmitters_dict=None):
-        self.transmitters = transmitters  # List of your TX objects
+        self.transmitters = transmitters_dict  # List of your TX objects
         self.muted = False
         self.fader = AudioFader(fade_duration_ms=500)
         self.mute_reason = None
@@ -224,3 +224,61 @@ class AudioSafetyController:
             self.muted = True
             self.muted_reason = "EMERGENCY"
 
+
+#example usage and integration test
+if __name__ == "__main__":
+    print("=== PTP Monitor & Audio Safety Test ===\n")
+    
+    # Create mock transmitter objects for testing
+    class MockTransmitter:
+        def __init__(self, name):
+            self.name = name
+            self.gain = 1.0
+        
+        def set_gain(self, gain):
+            self.gain = gain
+    
+    # Create transmitters
+    transmitters = {
+        'Studio_A': MockTransmitter('Studio_A'),
+        'Studio_B': MockTransmitter('Studio_B')
+    }
+    
+    # Create safety controller
+    safety = AudioSafetyController(transmitters)
+    
+    # Create and start PTP monitor with callbacks
+    ptp = PTPMonitor(
+        callback_on_sync_loss=safety.handle_sync_loss,
+        callback_on_sync_restore=safety.handle_sync_restored
+    )
+    ptp.start_monitoring()
+    
+    # Check initial sync
+    print("Checking for PTP sync...\n")
+    time.sleep(3)
+    
+    if ptp.is_synced():
+        print("✓ PTP sync confirmed - safe to stream audio\n")
+    else:
+        print("⚠ No PTP sync detected")
+        print("  For testing purposes, continuing anyway...")
+        print("  In production, you should abort here\n")
+    
+    # Simulate running for a while
+    print("Monitoring PTP sync (press Ctrl+C to stop)...")
+    print("Tip: Disable your PTP master to test sync loss behavior\n")
+    
+    try:
+        while True:
+            time.sleep(5)
+            status = ptp.get_sync_status()
+            if status['synced']:
+                print(f"Status: Synced (last packet {status['last_packet_age']:.1f}s ago)")
+            else:
+                print(f"Status: NOT SYNCED (failures: {status['consecutive_failures']})")
+    
+    except KeyboardInterrupt:
+        print("\n\nShutting down...")
+        ptp.stop()
+        print("Test complete!")
