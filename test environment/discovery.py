@@ -25,6 +25,12 @@ class AES67Discovery:
         self.running = True
         sap_thread = threading.Thread(target=self._sap_listener)
         sap_thread.start()
+
+        # Add real life closed LAN functionality here
+        # Specify network interface IP (more reliable)
+        # LAN_IP = "192.168.1.50"  # Replace with computer's IP
+        # mreq = struct.pack("4s4s", socket.inet_aton(MCAST_GRP), socket.inet_aton(YOUR_LAN_IP))
+
         print ("SAP discovery started")
 
     def _sap_listener(self): # listens for SAP announcements
