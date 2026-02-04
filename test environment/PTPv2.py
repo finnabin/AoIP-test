@@ -33,6 +33,9 @@ class PTPMonitor:
         PTP_MULTICAST_ADDR = "224.0.1.129" # Standard PTPv2 multicast address
         sock = None
 
+        # CHANGE: Join PTP multicast (may need specific interface)
+        # Option 1: Auto-select interface
+
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) # Create UDP socket
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
