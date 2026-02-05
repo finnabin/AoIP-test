@@ -1,11 +1,18 @@
 {
   "devices": [
     {
-      "id": "",
-      "ip": "",
+      "id": "laptop source",
+      "ip": "192.168.1.100",
       "port": 5004,
-      "media_type": "",
-      "type": ""
+      "media_type": "audio",
+      "type": "source"
+    },
+    {
+      "id": "laptop speaker",
+      "ip": "192.168.1.101",
+      "port": 5004,
+      "media_type": "audio",
+      "type": "destination"
     }
 ]
 }
