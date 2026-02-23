@@ -4,6 +4,13 @@ import discovery
 import PTPv2
 import time
 
+"""
+This is the main script for my AudioOverIP test environment with PTP protection.
+Currently, the JSON config file is set to locate other devices manually.
+"""
+
+
+
 def main():
     print("="*60)
     print("=== AudioOverIP Test Environment with PTP Protection ===")
