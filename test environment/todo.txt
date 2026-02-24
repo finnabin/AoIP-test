@@ -1,2 +1,2 @@
 - make sure labels for all defs in tx and rx are correct
-- test with mac laptop
+- find out how to test with mac laptop
