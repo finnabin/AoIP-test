@@ -13,7 +13,7 @@ class PTPMonitor:
         self.last_ptp_time = 0
         self.sync_timeout = 2.0
         self.callback_loss = callback_on_sync_loss
-        self.callback_restrore = callback_on_sync_restore
+        self.callback_restore = callback_on_sync_restore
         self.running = False
         self.consecutive_failures = 0
         self.failure_threshold = 3  # Number of consecutive failures before triggering loss
@@ -112,7 +112,7 @@ class AudioFader:
 
     def generate_fade_out_curve(self):
         curve = []
-        for i in range(self.num.steps):
+        for i in range(self.num_steps):
             progress = i / (self.num_steps -1)
 
             db_reduction = -60 * progress
@@ -160,7 +160,7 @@ class AudioFader:
 class AudioSafetyController:
     
     def __init__(self, transmitters_dict=None):
-        self.transmitters = transmitters_dict  # List of your TX objects
+        self.transmitters = transmitters_dict or {}  # List of your TX objects
         self.muted = False
         self.fader = AudioFader(fade_duration_ms=500)
         self.mute_reason = None
@@ -208,7 +208,7 @@ class AudioSafetyController:
                 print(f"[{tx_name}] Unmuted")
 
             self.muted = False
-            self.muted_reason = None
+            self.mute_reason = None
 
             print("All audio outputs unmuted.")
 
@@ -217,7 +217,7 @@ class AudioSafetyController:
         return {
             "muted": self.muted,
             "reason": self.mute_reason,
-            "protected_transmitters": list(self,transmitters.keys())
+            "protected_transmitters": list(self.transmitters.keys())
             }
     
     def emergency_mute_all(self):
