@@ -144,15 +144,28 @@ def main():
         else:
             print(f"✗ {device_id} failed to connect")
 
-    # STEP 5: Simulate streaming (PTP monitor running in background)
+    # STEP 5: Start audio streams
+    print("\nSTEP 5: Starting audio streams...")
+    print("-" * 60)
+    
+    # Start receiver audio playback (listening for incoming audio)
+    receiver.start_audio_playback()
+    time.sleep(1)
+    
+    # Start transmitter audio capture
+    for tx_name, tx in transmitters.items():
+        tx.start_audio_stream()
+        time.sleep(0.5)
+
+    # STEP 6: Simulate streaming (PTP monitor running in background)
     print("\n" + "="*60)
-    print("STEP 5: Streaming simulation")
+    print("STEP 6: Audio streaming active")
     print("="*60)
-    print("\nAudio streaming active...")
+    print("\nAudio is being transmitted and received...")
     print("PTP monitoring active in background")
     print("  - If PTP sync is lost, audio will fade out automatically")
     print("  - If PTP sync returns, audio will fade in automatically")
-    print("\nSimulating 10 seconds of streaming...")
+    print("\nStreaming for 10 seconds...")
     print("(Try disabling PTP master clock to test protection)\n")
     
     # Stream for 10 seconds while PTP monitor watches in background
@@ -160,10 +173,10 @@ def main():
         time.sleep(1)
         
         # Check and display PTP status
-        status = ptp_monitor.get_sync_status()
+        is_synced = ptp_monitor.is_synced()
         safety_status = safety_controller.get_status()
         
-        if status['synced']:
+        if is_synced:
             sync_indicator = "✓ SYNCED"
         else:
             sync_indicator = "✗ NOT SYNCED"
@@ -172,9 +185,18 @@ def main():
         
         print(f"  [{i+1}/10s] PTP: {sync_indicator} | Audio: {mute_indicator}")
 
-    # STEP 6: Clean disconnection
-    print("\n" + "="*60)
-    print("STEP 6: Clean shutdown sequence")
+    # STEP 7: Stop audio streams
+    print("\nSTEP 7: Stopping audio streams...")
+    print("-" * 60)
+    
+    for tx_name, tx in transmitters.items():
+        tx.stop_audio_stream()
+        time.sleep(0.3)
+    
+    receiver.stop_audio_playback()
+
+    # STEP 8: Clean disconnection
+    print("\nSTEP 8: Clean shutdown sequence")
     print("="*60 + "\n")
     
     # Disconnect transmitters gracefully
@@ -199,7 +221,7 @@ def main():
         time.sleep(1)
         receiver.show_connections()
 
-    # STEP 7: Stop all services
+    # STEP 9: Stop all services
     print("\nStopping all services...")
     receiver.stop()
     print("  ✓ Receiver stopped")
