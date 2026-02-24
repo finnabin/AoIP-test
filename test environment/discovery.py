@@ -75,6 +75,7 @@ class AES67Discovery:
 
                 sdp_data = data[sdp_offset:].decode("utf-8", errors="ignore")
 
+                device_info = self._parse_sdp(sdp_data, addr)
                 if device_info:
                     device_id = device_info.get("session_name", f"device_{addr[0]}")
                     self.discovered_devices[device_id] = device_info
@@ -125,7 +126,7 @@ class AES67Discovery:
             # include manual config devices if available
             if self.manual_config:
                 for device in self.manual_config.get("devices", []):
-                    device_id = device.get("device id")
+                    device_id = device.get("id")
                     if device_id and device_id not in all_devices:
                         all_devices[device_id] = device
 
