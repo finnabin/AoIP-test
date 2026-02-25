@@ -2,6 +2,9 @@ import socket
 import threading
 import json
 import time
+import pyaudio
+import struct
+import queue
 
 # Receiver class to handle incoming connections from AudioIns 
 
@@ -11,6 +14,16 @@ class Receiver:
         self.socket.bind(("0.0.0.0", listen_port))
         self.connections = {} # dictionary to connections between transmitters and receivers
         self.running = False
+        
+        # Audio parameters
+        self.SAMPLE_RATE = 16000
+        self.CHUNK_SIZE = 1024
+        self.FORMAT = pyaudio.paInt16
+        self.CHANNELS = 1
+        
+        self.audio_queue = queue.Queue(maxsize=50)  # Buffer for incoming audio
+        self.audio_stream = None
+        self.audio_playing = False
 
     def start(self):
         self.running = True
@@ -21,18 +34,29 @@ class Receiver:
         print("Receiver scanning for connections...")
         while self.running:
             try:
-                data, addr = self.socket.recvfrom(1024)  # buffer size is 1024 bytes
-                message = json.loads(data.decode()) 
-
-                if message["type"] == "connect":
-                    self.handle_connect(message, addr)
-                elif message["type"] == "disconnect":
-                    self.handle_disconnect(message, addr)
-                elif message["type"] == "ping":
-                    self.handle_ping(addr)
+                data, addr = self.socket.recvfrom(10240)  # Larger buffer for audio chunks
+                
+                # Check packet type
+                if len(data) > 0 and data[0:1] == b'A':
+                    # Audio packet
+                    self.handle_audio_packet(data, addr)
+                else:
+                    # Control message
+                    try:
+                        message = json.loads(data.decode())
+                        
+                        if message["type"] == "connect":
+                            self.handle_connect(message, addr)
+                        elif message["type"] == "disconnect":
+                            self.handle_disconnect(message, addr)
+                        elif message["type"] == "ping":
+                            self.handle_ping(addr)
+                    except json.JSONDecodeError:
+                        pass  # Not a valid JSON message, skip
 
             except Exception as e:
-                print(f"Error receiving data: {e}")
+                if self.running:
+                    print(f"Error receiving data: {e}")
 
     def handle_connect(self, message, addr):
         transmitter_id = message["transmitter_id"]
@@ -61,5 +85,85 @@ class Receiver:
     def stop(self):
         self.running = False
         self.socket.close()
+        if self.audio_playing:
+            self.stop_audio_playback()
+
+    def handle_audio_packet(self, packet, addr):
+        """Parse and queue incoming audio packet"""
+        try:
+            # Packet format: [type(1)][seq_num(4)][sample_rate(4)][audio_data]
+            seq_num = struct.unpack('I', packet[1:5])[0]
+            sample_rate = struct.unpack('I', packet[5:9])[0]
+            audio_data = packet[9:]
+            
+            # Queue audio for playback
+            try:
+                self.audio_queue.put_nowait(audio_data)
+            except queue.Full:
+                pass  # Drop oldest packet if buffer full
+                
+        except Exception as e:
+            print(f"Error parsing audio packet: {e}")
+
+    def start_audio_playback(self):
+        """Initialize and start audio playback"""
+        try:
+            self.audio_playing = True
+            playback_thread = threading.Thread(target=self._audio_playback_loop)
+            playback_thread.daemon = True
+            playback_thread.start()
+            print(f"Audio playback started - playing to speaker at {self.SAMPLE_RATE}Hz")
+            return True
+        except Exception as e:
+            print(f"Error starting audio playback: {e}")
+            self.audio_playing = False
+            return False
+
+    def _audio_playback_loop(self):
+        """Continuously play audio from queue to speaker"""
+        p = pyaudio.PyAudio()
+        
+        try:
+            # Open audio output stream to speaker
+            self.audio_stream = p.open(
+                format=self.FORMAT,
+                channels=self.CHANNELS,
+                rate=self.SAMPLE_RATE,
+                output=True,
+                frames_per_buffer=self.CHUNK_SIZE
+            )
+            
+            print(f"Speaker output opened: {self.CHANNELS} channel(s), {self.SAMPLE_RATE}Hz")
+            
+            while self.audio_playing:
+                try:
+                    # Get audio from queue with timeout
+                    audio_data = self.audio_queue.get(timeout=1.0)
+                    
+                    # Play audio
+                    self.audio_stream.write(audio_data)
+                    
+                except queue.Empty:
+                    # No data available, play silence
+                    silence = b'\x00' * (self.CHUNK_SIZE * 2)  # 2 bytes per sample (16-bit)
+                    self.audio_stream.write(silence)
+        
+        except Exception as e:
+            print(f"Error in audio playback loop: {e}")
+        
+        finally:
+            if self.audio_stream:
+                self.audio_stream.stop_stream()
+                self.audio_stream.close()
+            p.terminate()
+            print("Speaker output closed")
+
+    def stop_audio_playback(self):
+        """Stop audio playback"""
+        if self.audio_playing:
+            print("Stopping audio playback...")
+            self.audio_playing = False
+            time.sleep(0.5)  # Give thread time to close cleanly
+            print("Audio playback stopped")
 
 
