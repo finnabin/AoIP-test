@@ -1,4 +1,8 @@
 {
+  "device_role": "receiver",
+  "receiver_ip": "192.168.1.101",
+  "receiver_port": 5004,
+  "streaming_duration_seconds": 10,
   "devices": [
     {
       "id": "laptop source",

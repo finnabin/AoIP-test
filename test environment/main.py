@@ -3,17 +3,79 @@ import TXtransmitter
 import discovery
 import PTPv2
 import time
+import argparse
+import json
 
 """
 This is the main script for my AudioOverIP test environment with PTP protection.
-Currently, the JSON config file is set to locate other devices manually.
+Each device can be configured as either a transmitter (source) or receiver (sink).
+Configuration can be set in config.json or overridden via CLI arguments.
 """
 
 
+def load_config_and_role():
+    """Load config.json and parse CLI arguments to determine device role"""
+    # Load config file
+    config = {}
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        print("Warning: config.json not found, using defaults")
+        config = {
+            "device_role": "receiver",
+            "receiver_ip": "192.168.1.101",
+            "receiver_port": 5004,
+            "streaming_duration_seconds": 10
+        }
+    except json.JSONDecodeError as e:
+        print(f"Error parsing config.json: {e}")
+        return None, None
+
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(
+        description="AudioOverIP test environment with PTP protection"
+    )
+    parser.add_argument(
+        '--role',
+        choices=['transmitter', 'receiver'],
+        help='Device role: transmitter (source) or receiver (sink). Overrides config.json'
+    )
+    parser.add_argument(
+        '--receiver-ip',
+        help='Receiver IP address (for transmitter mode). Overrides config.json'
+    )
+    parser.add_argument(
+        '--duration',
+        type=int,
+        help='Streaming duration in seconds (for transmitter mode). Overrides config.json'
+    )
+    
+    args = parser.parse_args()
+    
+    # Apply CLI overrides
+    if args.role:
+        config['device_role'] = args.role
+    if args.receiver_ip:
+        config['receiver_ip'] = args.receiver_ip
+    if args.duration:
+        config['streaming_duration_seconds'] = args.duration
+    
+    role = config.get('device_role', 'receiver')
+    return config, role
+
 
 def main():
+    # Load configuration
+    config, device_role = load_config_and_role()
+    
+    if config is None:
+        print("Failed to load configuration")
+        return
+    
     print("="*60)
     print("=== AudioOverIP Test Environment with PTP Protection ===")
+    print(f"=== Device Role: {device_role.upper()} ===")
     print("="*60 + "\n")
 
     # STEP 1: Initialize PTP monitoring FIRST
@@ -47,129 +109,135 @@ def main():
         print("⚠ WARNING: No PTP sync detected!")
         time.sleep(2)
 
-    # STEP 2: Discover AES67 devices on the network
-    print("\nSTEP 2: Discovering AES67 devices...")
-    print("-" * 60)
+    # Branch based on device role
+    if device_role == "receiver":
+        run_receiver_mode(ptp_monitor, safety_controller)
+    else:  # transmitter
+        run_transmitter_mode(config, ptp_monitor, safety_controller)
     
-    # Start device discovery (SAP + manual config fallback)
-    discoverer = discovery.AES67Discovery(manual_config_path="config.json")
-    discoverer.start_sap_discovery()
-
-    print("Scanning for SAP announcements...")
-    time.sleep(5)  # Wait for SAP devices to announce themselves
-
-    # Show what we found
-    discoverer.show_devices()
-
-    # Get all discovered devices (SAP + manual config)
-    devices = discoverer.get_discovered_devices()
+    # Shutdown PTP monitor
+    ptp_monitor.stop()
+    print("  ✓ PTP monitor stopped")
     
-    if not devices:
-        print("⚠ No devices discovered! Check that:")
-        print("  - Devices are in AES67 mode")
-        print("  - Devices are announcing via SAP")
-        print("  - config.json has manual fallback devices")
-        
-        # Clean shutdown
-        discoverer.stop()
-        ptp_monitor.stop()
-        return
+    print("\n" + "="*60)
+    print("Test complete! All systems shut down safely.")
+    print("="*60 + "\n")
 
-    # STEP 3: Start the receiver
-    print("\nSTEP 3: Starting audio receiver...")
+
+def run_receiver_mode(ptp_monitor, safety_controller):
+    """Run as audio receiver (sink) - listen for incoming streams"""
+    print("\nSTEP 2: Starting Audio Receiver (listening mode)...")
     print("-" * 60)
     
     receiver = RXreceiver.Receiver()
     receiver.start()
     print("✓ Receiver started on port 5004")
+    print("  Waiting for transmitters to connect...\n")
     time.sleep(1)
-
-    # STEP 4: Create transmitters from discovered devices
-    print("\nSTEP 4: Connecting to discovered devices...")
-    print("-" * 60)
     
-    transmitters = {}  # Dictionary to store our transmitter objects
-    device_list = list(devices.items())
-    
-    # Try to connect to first discovered device
-    if len(device_list) >= 1:
-        device_id, device_info = device_list[0]
-        print(f"\nConnecting to: {device_id}")
-        print(f"  IP: {device_info['ip']}")
-        print(f"  Port: {device_info.get('port', 5004)}")
-        
-        # Create transmitter object
-        tx1 = TXtransmitter.Transmitter(
-            transmitter_id=device_id,
-            receiver_ip=device_info['ip'],
-            receiver_port=device_info.get('port', 5004)
-        )
-        
-        # Attempt connection
-        if tx1.connect():
-            print(f"✓ {device_id} connected successfully")
-            transmitters['tx1'] = tx1
-            
-            # IMPORTANT: Add this transmitter to safety monitoring
-            # Now if PTP is lost, this transmitter will be safely muted
-            safety_controller.add_transmitter('tx1', tx1)
-            
-            receiver.show_connections()
-        else:
-            print(f"✗ {device_id} failed to connect")
-
-    time.sleep(2)
-
-    # Try to connect to second discovered device
-    if len(device_list) >= 2:
-        device_id, device_info = device_list[1]
-        print(f"\nConnecting to: {device_id}")
-        print(f"  IP: {device_info['ip']}")
-        print(f"  Port: {device_info.get('port', 5004)}")
-        
-        tx2 = TXtransmitter.Transmitter(
-            transmitter_id=device_id,
-            receiver_ip=device_info['ip'],
-            receiver_port=device_info.get('port', 5004)
-        )
-        
-        if tx2.connect():
-            print(f"✓ {device_id} connected successfully")
-            transmitters['tx2'] = tx2
-            
-            # Add to safety monitoring
-            safety_controller.add_transmitter('tx2', tx2)
-            
-            receiver.show_connections()
-        else:
-            print(f"✗ {device_id} failed to connect")
-
-    # STEP 5: Start audio streams
-    print("\nSTEP 5: Starting audio streams...")
-    print("-" * 60)
-    
-    # Start receiver audio playback (listening for incoming audio)
+    # Start audio playback
     receiver.start_audio_playback()
+    
+    print("\n" + "="*60)
+    print("RECEIVER ACTIVE - Listening for audio streams")
+    print("="*60)
+    print("\nPTP monitoring active in background")
+    print("  - If PTP sync is lost, audio will fade out automatically")
+    print("  - If PTP sync returns, audio will fade in automatically")
+    print("\nPress Ctrl+C to stop listening...\n")
+    
+    try:
+        # Run indefinitely until interrupted
+        while True:
+            time.sleep(5)
+            
+            # Periodically check and display PTP status
+            is_synced = ptp_monitor.is_synced()
+            safety_status = safety_controller.get_status()
+            
+            if is_synced:
+                sync_indicator = "✓ SYNCED"
+            else:
+                sync_indicator = "✗ NOT SYNCED"
+            
+            mute_indicator = "🔇 MUTED" if safety_status['muted'] else "🔊 ACTIVE"
+            connected_count = len(receiver.connections)
+            
+            print(f"Status: PTP: {sync_indicator} | Audio: {mute_indicator} | Connections: {connected_count}")
+    
+    except KeyboardInterrupt:
+        print("\n\nReceiver shutdown initiated...")
+    
+    finally:
+        print("\nShutting down receiver...")
+        receiver.stop_audio_playback()
+        receiver.stop()
+        print("  ✓ Receiver stopped")
+
+
+def run_transmitter_mode(config, ptp_monitor, safety_controller):
+    """Run as audio transmitter (source) - capture and send audio"""
+    print("\nSTEP 2: Starting Audio Transmitter (capture mode)...")
+    print("-" * 60)
+    
+    receiver_ip = config.get('receiver_ip')
+    receiver_port = config.get('receiver_port', 5004)
+    duration = config.get('streaming_duration_seconds', 10)
+    
+    if not receiver_ip:
+        print("✗ Error: receiver_ip not configured")
+        print("  Set receiver_ip in config.json or use --receiver-ip argument")
+        return
+    
+    print(f"Receiver: {receiver_ip}:{receiver_port}")
+    print(f"Duration: {duration} seconds\n")
+    
+    # STEP 3: Create transmitter
+    print("STEP 3: Connecting to receiver...")
+    print("-" * 60)
+    
+    transmitter = TXtransmitter.Transmitter(
+        transmitter_id="local_transmitter",
+        receiver_ip=receiver_ip,
+        receiver_port=receiver_port
+    )
+    
+    # Attempt connection
+    if not transmitter.connect():
+        print("✗ Failed to connect to receiver")
+        print("  Ensure receiver is running at the specified IP address")
+        return
+    
+    print("✓ Connected to receiver successfully\n")
+    
+    # Add to safety monitoring
+    safety_controller.add_transmitter('tx', transmitter)
+    
+    # STEP 4: Start audio capture
+    print("STEP 4: Starting audio capture...")
+    print("-" * 60)
+    
+    if not transmitter.start_audio_stream():
+        print("✗ Failed to start audio stream")
+        transmitter.disconnect()
+        safety_controller.remove_transmitter('tx')
+        return
+    
     time.sleep(1)
     
-    # Start transmitter audio capture
-    for tx_name, tx in transmitters.items():
-        tx.start_audio_stream()
-        time.sleep(0.5)
-
-    # STEP 6: Simulate streaming (PTP monitor running in background)
+    # STEP 5: Stream audio
     print("\n" + "="*60)
-    print("STEP 6: Audio streaming active")
+    print("TRANSMITTER ACTIVE - Streaming audio")
     print("="*60)
-    print("\nAudio is being transmitted and received...")
+    print("\nAudio is being captured and transmitted...")
     print("PTP monitoring active in background")
     print("  - If PTP sync is lost, audio will fade out automatically")
     print("  - If PTP sync returns, audio will fade in automatically")
-    print("\nStreaming for 10 seconds...")
+    print(f"\nStreaming for {duration} seconds...")
     print("(Try disabling PTP master clock to test protection)\n")
     
-    # Stream for 10 seconds while PTP monitor watches in background
-    for i in range(10):
+    # Stream for specified duration while PTP monitor watches in background
+    for i in range(duration):
         time.sleep(1)
         
         # Check and display PTP status
@@ -183,58 +251,23 @@ def main():
         
         mute_indicator = "🔇 MUTED" if safety_status['muted'] else "🔊 ACTIVE"
         
-        print(f"  [{i+1}/10s] PTP: {sync_indicator} | Audio: {mute_indicator}")
-
-    # STEP 7: Stop audio streams
-    print("\nSTEP 7: Stopping audio streams...")
+        print(f"  [{i+1}/{duration}s] PTP: {sync_indicator} | Audio: {mute_indicator}")
+    
+    # STEP 6: Stop audio stream
+    print("\nSTEP 6: Stopping audio capture...")
     print("-" * 60)
     
-    for tx_name, tx in transmitters.items():
-        tx.stop_audio_stream()
-        time.sleep(0.3)
+    transmitter.stop_audio_stream()
+    time.sleep(0.5)
     
-    receiver.stop_audio_playback()
-
-    # STEP 8: Clean disconnection
-    print("\nSTEP 8: Clean shutdown sequence")
-    print("="*60 + "\n")
+    # STEP 7: Disconnect
+    print("\nSTEP 7: Disconnecting from receiver...")
+    print("-" * 60)
     
-    # Disconnect transmitters gracefully
-    if 'tx1' in transmitters:
-        device_id = transmitters['tx1'].transmitter_id
-        print(f"Disconnecting {device_id}...")
-        
-        # Remove from safety monitoring first
-        safety_controller.remove_transmitter('tx1')
-        
-        # Then disconnect
-        transmitters['tx1'].disconnect()
-        time.sleep(1)
-        receiver.show_connections()
-
-    if 'tx2' in transmitters:
-        device_id = transmitters['tx2'].transmitter_id
-        print(f"Disconnecting {device_id}...")
-        
-        safety_controller.remove_transmitter('tx2')
-        transmitters['tx2'].disconnect()
-        time.sleep(1)
-        receiver.show_connections()
-
-    # STEP 9: Stop all services
-    print("\nStopping all services...")
-    receiver.stop()
-    print("  ✓ Receiver stopped")
+    safety_controller.remove_transmitter('tx')
+    transmitter.disconnect()
     
-    discoverer.stop()
-    print("  ✓ Discovery stopped")
-    
-    ptp_monitor.stop()
-    print("  ✓ PTP monitor stopped")
-    
-    print("\n" + "="*60)
-    print("Test complete! All systems shut down safely.")
-    print("="*60 + "\n")
+    print("  ✓ Disconnected")
 
 
 if __name__ == "__main__":
