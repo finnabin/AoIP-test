@@ -1,6 +1,6 @@
 {
   "device_role": "transmitter",
-  "transmitter_ip": "192.168.1.100",
+  "receiver_ip": "192.168.1.20",
   "transmitter_port": 5004,
   "streaming_duration_seconds": 10,
   "devices": [
