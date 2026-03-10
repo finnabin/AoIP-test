@@ -1,19 +1,19 @@
 {
-  "device_role": "receiver",
-  "receiver_ip": "192.168.1.101",
-  "receiver_port": 5004,
+  "device_role": "transmitter",
+  "transmitter_ip": "192.168.1.100",
+  "transmitter_port": 5004,
   "streaming_duration_seconds": 10,
   "devices": [
     {
-      "id": "laptop source",
+      "id": "macbook source",
       "ip": "192.168.1.100",
       "port": 5004,
       "media_type": "audio",
       "type": "source"
     },
     {
-      "id": "laptop speaker",
-      "ip": "192.168.1.101",
+      "id": "DMP64 destination",
+      "ip": "192.168.1.20",
       "port": 5004,
       "media_type": "audio",
       "type": "destination"
