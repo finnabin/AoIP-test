@@ -1,3 +1,4 @@
 - make sure labels for all defs in tx and rx are correct
 - find out how to test with mac laptop
 - prototype with DMP and AV mac (success = audio streamed between both devices without latency)
+- REMEMBER: verify the IPs and ensure both devices are on the same subnet
