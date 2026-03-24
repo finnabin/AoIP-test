@@ -10,6 +10,8 @@ import json
 This is the main script for my AudioOverIP test environment with PTP protection.
 Each device can be configured as either a transmitter (source) or receiver (sink).
 Configuration can be set in config.json or overridden via CLI arguments.
+
+prototyping notes:
 """
 
 
