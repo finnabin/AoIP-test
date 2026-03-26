@@ -37,10 +37,7 @@ class Receiver:
                 data, addr = self.socket.recvfrom(10240)  # Larger buffer for audio chunks
                 
                 # Check packet type
-                if len(data) > 0 and data[0:1] == b'A':
-                    # Audio packet
-                    self.handle_audio_packet(data, addr)
-                else:
+                if len(data) > 0 and data[0] == ord('{'):
                     # Control message
                     try:
                         message = json.loads(data.decode())
@@ -53,6 +50,9 @@ class Receiver:
                             self.handle_ping(addr)
                     except json.JSONDecodeError:
                         pass  # Not a valid JSON message, skip
+                else:
+                    # Assume RTP audio packet
+                    self.handle_rtp_packet(data, addr)
 
             except Exception as e:
                 if self.running:
@@ -88,22 +88,42 @@ class Receiver:
         if self.audio_playing:
             self.stop_audio_playback()
 
-    def handle_audio_packet(self, packet, addr):
-        """Parse and queue incoming audio packet"""
+    def handle_rtp_packet(self, data, addr):
+        """Parse RTP packet and queue audio payload"""
+        if len(data) < 12:
+            return
+        
+        # Check RTP version (should be 2)
+        version = (data[0] >> 6) & 0x03
+        if version != 2:
+            return
+        
+        # Extract RTP header fields (for reference)
+        seq_num = struct.unpack('!H', data[2:4])[0]
+        timestamp = struct.unpack('!I', data[4:8])[0]
+        ssrc = struct.unpack('!I', data[8:12])[0]
+        
+        # Payload starts after 12-byte header
+        payload = data[12:]
+        
+        # Assume PCM 16-bit mono audio payload
+        audio_data = payload
+        
+        # Track connection
+        addr_str = f"{addr[0]}:{addr[1]}"
+        if addr_str not in self.connections:
+            self.connections[addr_str] = {
+                "ip": addr[0],
+                "port": addr[1],
+                "connected_at": time.time()
+            }
+            print(f"RTP stream connected from {addr}")
+        
+        # Queue audio for playback
         try:
-            # Packet format: [type(1)][seq_num(4)][sample_rate(4)][audio_data]
-            seq_num = struct.unpack('I', packet[1:5])[0]
-            sample_rate = struct.unpack('I', packet[5:9])[0]
-            audio_data = packet[9:]
-            
-            # Queue audio for playback
-            try:
-                self.audio_queue.put_nowait(audio_data)
-            except queue.Full:
-                pass  # Drop oldest packet if buffer full
-                
-        except Exception as e:
-            print(f"Error parsing audio packet: {e}")
+            self.audio_queue.put_nowait(audio_data)
+        except queue.Full:
+            pass  # Drop if buffer full
 
     def start_audio_playback(self):
         """Initialize and start audio playback"""
