@@ -1,22 +1,23 @@
 {
   "device_role": "transmitter",
-  "receiver_ip": "192.168.254.254",
+  "receiver_ip": "169.254.1.1",
   "transmitter_port": 5004,
   "streaming_duration_seconds": 10,
   "devices": [
     {
-      "id": "macbook source",
-      "ip": "192.168.254.1",
+      "id": "ceiling tile microphone array",
+      "ip": "169.254.245.137",
       "port": 5004,
       "media_type": "audio",
       "type": "source"
     },
     {
-      "id": "DMP64 destination",
-      "ip": "192.168.254.254",
+      "id": "macbook speaker",
+      "ip": "169.254.1.2",
       "port": 5004,
       "media_type": "audio",
       "type": "destination"
     }
 ]
 }
+
