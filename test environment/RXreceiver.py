@@ -36,6 +36,11 @@ class Receiver:
             try:
                 data, addr = self.socket.recvfrom(10240)  # Larger buffer for audio chunks
                 
+                # Debug: print packet info
+                if len(data) > 0:
+                    first_byte = data[0]
+                    print(f"[DEBUG] Packet from {addr}: first_byte=0x{first_byte:02x} ({first_byte}), len={len(data)}")
+                
                 # Check packet type
                 if len(data) > 0 and data[0] == ord('{'):
                     # Control message

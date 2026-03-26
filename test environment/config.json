@@ -6,7 +6,7 @@
   "devices": [
     {
       "id": "ceiling tile microphone array",
-      "ip": "169.254.245.137",
+      "ip": "169.254.214.211",
       "port": 5004,
       "media_type": "audio",
       "type": "source"
