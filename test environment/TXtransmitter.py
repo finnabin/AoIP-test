@@ -25,6 +25,8 @@ class Transmitter:
         self.audio_stream = None
         self.audio_running = False
         self.sequence_number = 0
+        self.timestamp = 0
+        self.ssrc = 0x12345678  # Synchronization source identifier
 
     def connect(self):
         message = {"type": "connect", "transmitter_id": self.transmitter_id}
@@ -108,13 +110,11 @@ class Transmitter:
                     # Read audio data from microphone
                     audio_data = self.audio_stream.read(self.CHUNK_SIZE, exception_on_overflow=False)
                     
-                    # Create audio packet with header
+                    # Create RTP audio packet with proper header
                     packet = self._create_audio_packet(audio_data)
                     
                     # Send to receiver
                     self.socket.sendto(packet, (self.receiver_ip, self.receiver_port))
-                    
-                    self.sequence_number += 1
                     
                 except Exception as e:
                     if self.audio_running:
@@ -131,12 +131,31 @@ class Transmitter:
             print("Audio stream closed")
 
     def _create_audio_packet(self, audio_data):
-        """Create audio packet with header: [type(1)][seq_num(4)][sample_rate(4)][data]"""
-        packet_type = b'A'  # 'A' for audio
-        seq_header = struct.pack('I', self.sequence_number)
-        sample_rate_header = struct.pack('I', self.SAMPLE_RATE)
+        """Create RTP v2 audio packet with proper 12-byte header"""
+        # RTP Header (12 bytes):
+        # Byte 0: V(2)=2, P(1)=0, X(1)=0, CC(4)=0 -> 0x80
+        # Byte 1: PT(7)=11 (L16 mono), M(1)=0 -> 0x0B
+        # Bytes 2-3: Sequence number (16-bit, big-endian)
+        # Bytes 4-7: Timestamp (32-bit, big-endian)
+        # Bytes 8-11: SSRC (32-bit, big-endian)
         
-        return packet_type + seq_header + sample_rate_header + audio_data
+        rtp_version_flags = 0x80  # V=2, P=0, X=0, CC=0
+        payload_type = 0x0B       # L16 mono 16kHz
+        
+        # Pack RTP header using network byte order (big-endian)
+        rtp_header = struct.pack('!BBHII',
+            rtp_version_flags,
+            payload_type,
+            self.sequence_number & 0xFFFF,  # Wrap at 16-bit boundary
+            self.timestamp,
+            self.ssrc
+        )
+        
+        # Update for next packet
+        self.sequence_number = (self.sequence_number + 1) & 0xFFFF
+        self.timestamp += self.CHUNK_SIZE
+        
+        return rtp_header + audio_data
 
     def stop_audio_stream(self):
         """Stop audio capture"""
