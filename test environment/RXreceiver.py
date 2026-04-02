@@ -78,7 +78,7 @@ class Receiver:
         transmitter_id = message["transmitter_id"]
         if transmitter_id in self.connections:
             del self.connections[transmitter_id]
-            response = {"type: disconnect_ack", "status: disconnected"}
+            response = {"type": "disconnect_ack", "status": "disconnected"}
             self.socket.sendto(json.dumps(response).encode(), addr)
             print(f"Disconnected transmitter {transmitter_id}")
 
@@ -95,24 +95,48 @@ class Receiver:
 
     def handle_rtp_packet(self, data, addr):
         """Parse RTP packet and queue audio payload"""
-        if len(data) < 12:
+        if len(data) < 7:
             return
+        
+        audio_data = None
         
         # Check RTP version (should be 2)
         version = (data[0] >> 6) & 0x03
-        if version != 2:
+        if version == 2 and len(data) >= 12:
+            # Extract RTP header fields (for reference)
+            seq_num = struct.unpack('!H', data[2:4])[0]
+            timestamp = struct.unpack('!I', data[4:8])[0]
+            ssrc = struct.unpack('!I', data[8:12])[0]
+            
+            # Payload starts after 12-byte header
+            audio_data = data[12:]
+        elif data[0] == ord('A') and len(data) >= 7:
+            # fallback for legacy custom A header format
+            seq_num = struct.unpack('!H', data[1:3])[0]
+            sample_rate = struct.unpack('!I', data[3:7])[0]
+            
+            if sample_rate != self.SAMPLE_RATE:
+                print(f"Legacy packet sample rate {sample_rate} does not match receiver {self.SAMPLE_RATE}")
+            
+            audio_data = data[7:]
+        else:
             return
         
-        # Extract RTP header fields (for reference)
-        seq_num = struct.unpack('!H', data[2:4])[0]
-        timestamp = struct.unpack('!I', data[4:8])[0]
-        ssrc = struct.unpack('!I', data[8:12])[0]
+        # Track connection
+        addr_str = f"{addr[0]}:{addr[1]}"
+        if addr_str not in self.connections:
+            self.connections[addr_str] = {
+                "ip": addr[0],
+                "port": addr[1],
+                "connected_at": time.time()
+            }
+            print(f"RTP stream connected from {addr}")
         
-        # Payload starts after 12-byte header
-        payload = data[12:]
-        
-        # Assume PCM 16-bit mono audio payload
-        audio_data = payload
+        # Queue audio for playback
+        try:
+            self.audio_queue.put_nowait(audio_data)
+        except queue.Full:
+            pass  # Drop if buffer full
         
         # Track connection
         addr_str = f"{addr[0]}:{addr[1]}"
